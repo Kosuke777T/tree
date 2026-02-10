@@ -13,3 +13,8 @@ wheels/
 .xlsx
 
 farm/
+# Large archives
+zip/
+*.zip
+*.ZIP
+
