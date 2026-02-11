@@ -134,3 +134,13 @@ class MainWindow(QMainWindow):
         if sid:
             self.detail.show_sow(sid)
             self.tabs.setCurrentWidget(self.detail)
+
+
+if __name__ == "__main__":
+    import sys
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
