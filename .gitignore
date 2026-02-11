@@ -13,8 +13,13 @@ wheels/
 .xlsx
 
 farm/
+*.log
+*.db
+logs/
 # Large archives
 zip/
 *.zip
 *.ZIP
+
+drivers/
 

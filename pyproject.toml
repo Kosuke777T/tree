@@ -1,10 +1,18 @@
 [project]
 name = "tree"
 version = "0.1.0"
-description = "Add your description here"
+description = "養豚家系図・系統評価ソフト"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "pandas>=2.2",
+    "xlrd>=2.0",
+    "openpyxl>=3.1",
+    "PyQt6>=6.7",
+]
+
+[tool.uv]
+package = false
 
 [project.scripts]
-tree = "app.gui.main:main"
+tree = "app.__main__:main"

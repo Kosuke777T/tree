@@ -1,0 +1,50 @@
+目的：
+SQL Anywhere 9（Sybase ASA 9）で作成された FARM05.db に対して、
+変換・アップグレードを行わず「そのまま接続できるか」を確認する。
+ODBC ドライバは OS に登録されていないため、
+まずは SQL Anywhere 9 付属のクライアント（dbisqlc）で接続テストを行う。
+
+前提：
+- SQL Anywhere 9 の実行ファイル一式が以下のフォルダに存在する
+  D:\tree\drivers
+- 対象 DB ファイル：
+  D:\tree\farm\FARM05.db
+
+手順：
+
+1) PowerShell を以下のフォルダで開く
+   D:\tree\drivers
+
+2) SQL Anywhere 9 サーバを起動する（DBを直接指定）
+   ※ このウィンドウは閉じない
+
+   実行コマンド：
+   .\dbsrv9.exe -n FARM05_OLD -x tcpip D:\tree\farm\FARM05.db
+
+   期待結果：
+   - エラーが出ず
+   - 「Now accepting requests」等の待機状態になる
+
+3) 別の PowerShell を開き、同じ drivers フォルダで
+   SQL Anywhere 9 の対話型クライアントを起動する
+
+   実行コマンド：
+   .\dbisqlc.exe -c "ENG=FARM05_OLD;UID=dba;PWD=sql"
+
+4) dbisqlc が起動し、SQL入力画面が出たら
+   以下の SQL を実行する
+
+   SELECT @@VERSION;
+
+   次に：
+   SELECT COUNT(*) FROM systable;
+
+5) 上記 SQL が正常に実行できれば、
+   「SQL Anywhere 9 の DB に変換不要で接続可能」であることが確定。
+
+補足：
+- このテストは DB を一切変更しない
+- 失敗した場合はエラーメッセージをそのまま表示すること
+- 成功したら、次のステップとして
+  「ODBC ドライバ登録」または
+  「Python からの接続方法」に進む
