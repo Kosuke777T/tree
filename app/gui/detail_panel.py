@@ -37,11 +37,11 @@ class DetailPanel(QWidget):
         # Parity scores table
         layout.addWidget(QLabel("産歴別スコア"))
         self.parity_table = QTableWidget()
-        self.parity_table.setColumnCount(21)
+        self.parity_table.setColumnCount(19)
         self.parity_table.setHorizontalHeaderLabels([
             "産歴", "総産子", "生存産子", "死産", "黒子", "里子",
-            "離乳", "自己離乳", "事故率",
-            "z(自己離乳)", "z(生存)", "z(総産)", "z(死産)", "z(自己率)",
+            "離乳", "事故率",
+            "z(生存)", "z(総産)", "z(死産)", "z(自己率)",
             "産歴スコア", "全頭順位", "稼働順位",
             "子豚数", "PS出荷", "繰上げ", "PS/W率",
         ])
@@ -166,9 +166,7 @@ class DetailPanel(QWidget):
                 str(r["mummified"]) if r["mummified"] is not None else "",
                 str(r["foster"]) if r["foster"] is not None else "",
                 str(r["weaned"]) if r["weaned"] is not None else "",
-                f"{r['own_weaned']:.1f}" if r["own_weaned"] is not None else "",
                 f"{r['own_rate']:.2f}" if r["own_rate"] is not None else "",
-                f"{r['z_own_weaned']:.3f}" if r["z_own_weaned"] is not None else "",
                 f"{r['z_live_born']:.3f}" if r["z_live_born"] is not None else "",
                 f"{r['z_total_born']:.3f}" if r["z_total_born"] is not None else "",
                 f"{r['z_stillborn']:.3f}" if r["z_stillborn"] is not None else "",

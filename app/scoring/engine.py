@@ -18,12 +18,11 @@ from dataclasses import dataclass
 
 ALPHA = 3  # shrinkage parameter
 
-# ParityScore weights
-W_OWN_W = 0.45
-W_LIVE_BORN = 0.25
-W_TOTAL_BORN = 0.15
-W_STILLBORN = 0.10
-W_OWN_RATE = 0.05
+# ParityScore weights (z_own_weaned excluded; proportionally redistributed)
+W_LIVE_BORN = 0.45
+W_TOTAL_BORN = 0.27
+W_STILLBORN = 0.18
+W_OWN_RATE = 0.10
 
 # TotalScore axis weights
 W_PEAK = 0.35
@@ -148,9 +147,8 @@ def run_scoring(conn: sqlite3.Connection, progress_cb=None) -> None:
             z_sb = _zscore(pr.stillborn, m_sb, s_sb, invert=True) * shrink
             z_or = _zscore(pr.own_rate, m_or, s_or) * shrink
 
-            ps = (W_OWN_W * z_ow + W_LIVE_BORN * z_lb +
-                  W_TOTAL_BORN * z_tb + W_STILLBORN * z_sb +
-                  W_OWN_RATE * z_or)
+            ps = (W_LIVE_BORN * z_lb + W_TOTAL_BORN * z_tb +
+                  W_STILLBORN * z_sb + W_OWN_RATE * z_or)
 
             parity_results.append({
                 "individual_id": pr.individual_id,

@@ -337,13 +337,13 @@ class PedigreeWidget(QWidget):
         t2.setPos(node.x + 4, node.y + 18)
         t2.setBrush(QBrush(QColor(255, 255, 255, 200)))
 
-        # Line 3: rank or cause
-        if node.cause:
-            line3 = node.cause[:16]
-        elif node.rank_all is not None:
+        # Line 3: rank (+ cause if present)
+        if node.rank_all is not None:
             line3 = f"全{node.rank_all}/{self._ranked_all}"
             if node.rank_active is not None:
                 line3 += f" 稼{node.rank_active}/{self._ranked_active}"
+        elif node.cause:
+            line3 = node.cause[:16]
         else:
             line3 = node.status
         t3 = self.scene.addSimpleText(line3, font_s)
