@@ -37,12 +37,13 @@ class DetailPanel(QWidget):
         # Parity scores table
         layout.addWidget(QLabel("産歴別スコア"))
         self.parity_table = QTableWidget()
-        self.parity_table.setColumnCount(12)
+        self.parity_table.setColumnCount(21)
         self.parity_table.setHorizontalHeaderLabels([
-            "産歴", "OWN_W", "OWN_RATE",
-            "z(OWN_W)", "z(生存)", "z(総産)", "z(死産)", "z(OWN_R)",
-            "ParityScore", "全頭順位", "稼働順位",
-            "離乳",
+            "産歴", "総産子", "生存産子", "死産", "黒子", "里子",
+            "離乳", "自己離乳", "事故率",
+            "z(自己離乳)", "z(生存)", "z(総産)", "z(死産)", "z(自己率)",
+            "産歴スコア", "全頭順位", "稼働順位",
+            "子豚数", "PS出荷", "繰上げ", "PS/W率",
         ])
         hdr = self.parity_table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
@@ -51,10 +52,10 @@ class DetailPanel(QWidget):
         # Offspring table
         layout.addWidget(QLabel("子豚一覧"))
         self.piglet_table = QTableWidget()
-        self.piglet_table.setColumnCount(8)
+        self.piglet_table.setColumnCount(6)
         self.piglet_table.setHorizontalHeaderLabels([
             "子豚№", "生年月日", "ランク", "乳評価",
-            "PS出荷", "出荷先", "備考", "出荷日齢",
+            "PS出荷", "備考",
         ])
         hdr2 = self.piglet_table.horizontalHeader()
         hdr2.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
@@ -105,7 +106,9 @@ class DetailPanel(QWidget):
 
         # Parity scores
         p_rows = self.conn.execute(
-            """SELECT ps.*, fr.weaned
+            """SELECT ps.*,
+                      fr.total_born, fr.born_alive, fr.stillborn,
+                      fr.mummified, fr.foster, fr.weaned
                FROM parity_scores ps
                LEFT JOIN farrowing_records fr
                  ON ps.individual_id = fr.individual_id
@@ -126,6 +129,24 @@ class DetailPanel(QWidget):
         ).fetchall():
             parity_totals[row["parity"]] = (row["total"], row["active"])
 
+        # Per-parity piglet stats (PS shipment, W promotion, total)
+        piglet_stats = {}
+        for row in self.conn.execute(
+            """SELECT fr.parity,
+                      COUNT(*) AS total,
+                      SUM(CASE WHEN p.ps_shipment = '○' THEN 1 ELSE 0 END) AS ps,
+                      SUM(CASE WHEN p.ps_shipment = 'W' THEN 1 ELSE 0 END) AS w
+               FROM piglets p
+               JOIN farrowing_records fr
+                 ON p.dam_id = fr.individual_id
+                 AND p.birth_date = fr.farrowing_date
+               WHERE p.dam_id = ?
+               GROUP BY fr.parity""",
+            (individual_id,),
+        ).fetchall():
+            piglet_stats[row["parity"]] = (
+                row["total"], row["ps"], row["w"])
+
         self.parity_table.setRowCount(len(p_rows))
         for i, r in enumerate(p_rows):
             pt = parity_totals.get(r["parity"], (0, 0))
@@ -133,8 +154,18 @@ class DetailPanel(QWidget):
                             if r["rank_all"] is not None else "")
             rank_active_str = (f"{r['rank_active']}/{pt[1]}"
                                if r["rank_active"] is not None else "")
+            ps = piglet_stats.get(r["parity"], (0, 0, 0))
+            pig_total, pig_ps, pig_w = ps
+            pw_rate = ((pig_ps + pig_w) / pig_total * 100
+                       if pig_total > 0 else 0)
             vals = [
                 str(r["parity"]),
+                str(r["total_born"]) if r["total_born"] is not None else "",
+                str(r["born_alive"]) if r["born_alive"] is not None else "",
+                str(r["stillborn"]) if r["stillborn"] is not None else "",
+                str(r["mummified"]) if r["mummified"] is not None else "",
+                str(r["foster"]) if r["foster"] is not None else "",
+                str(r["weaned"]) if r["weaned"] is not None else "",
                 f"{r['own_weaned']:.1f}" if r["own_weaned"] is not None else "",
                 f"{r['own_rate']:.2f}" if r["own_rate"] is not None else "",
                 f"{r['z_own_weaned']:.3f}" if r["z_own_weaned"] is not None else "",
@@ -145,7 +176,10 @@ class DetailPanel(QWidget):
                 f"{r['parity_score']:.3f}" if r["parity_score"] is not None else "",
                 rank_all_str,
                 rank_active_str,
-                str(r["weaned"]) if r["weaned"] is not None else "",
+                str(pig_total) if pig_total > 0 else "",
+                str(pig_ps) if pig_total > 0 else "",
+                str(pig_w) if pig_total > 0 else "",
+                f"{pw_rate:.0f}%" if pig_total > 0 else "",
             ]
             for j, v in enumerate(vals):
                 item = QTableWidgetItem(v)
@@ -155,7 +189,7 @@ class DetailPanel(QWidget):
         # Piglets
         pig_rows = self.conn.execute(
             """SELECT piglet_no, birth_date, rank, teat_score,
-                      ps_shipment, shipment_dest, remarks, shipment_age
+                      ps_shipment, remarks
                FROM piglets WHERE dam_id = ?
                ORDER BY piglet_no""",
             (individual_id,),
@@ -169,9 +203,7 @@ class DetailPanel(QWidget):
                 r["rank"] or "",
                 str(r["teat_score"]) if r["teat_score"] is not None else "",
                 r["ps_shipment"] or "",
-                r["shipment_dest"] or "",
                 r["remarks"] or "",
-                str(r["shipment_age"]) if r["shipment_age"] is not None else "",
             ]
             for j, v in enumerate(vals):
                 item = QTableWidgetItem(v)
