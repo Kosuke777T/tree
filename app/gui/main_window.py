@@ -66,8 +66,8 @@ class MainWindow(QMainWindow):
         self.detail = DetailPanel(self.conn)
         self.tabs.addTab(self.detail, "母豚詳細")
 
-        # Connect pedigree selection → detail
-        self.pedigree.scene.selectionChanged.connect(self._on_pedigree_select)
+        # Connect pedigree double-click → detail
+        self.pedigree.view.node_double_clicked.connect(self._on_pedigree_dblclick)
 
         # Status bar
         self.status_bar = QStatusBar()
@@ -82,6 +82,13 @@ class MainWindow(QMainWindow):
         sow_count = self.conn.execute(
             "SELECT count(*) FROM sows").fetchone()[0]
         if sow_count > 0:
+            # Ensure scoring tables are populated
+            score_count = self.conn.execute(
+                "SELECT count(*) FROM sow_scores").fetchone()[0]
+            if score_count == 0:
+                self.status_bar.showMessage("スコア再計算中...")
+                run_scoring(self.conn, progress_cb=lambda m:
+                            self.status_bar.showMessage(m))
             self.status_bar.showMessage(
                 f"既存DB読み込み — 母豚{sow_count}頭")
             self.pedigree.load_data()
@@ -125,15 +132,9 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("ETLエラー")
         QMessageBox.critical(self, "ETLエラー", msg)
 
-    def _on_pedigree_select(self) -> None:
-        items = self.pedigree.scene.selectedItems()
-        if not items:
-            return
-        item = items[0]
-        sid = item.data(0)
-        if sid:
-            self.detail.show_sow(sid)
-            self.tabs.setCurrentWidget(self.detail)
+    def _on_pedigree_dblclick(self, individual_id: str) -> None:
+        self.detail.show_sow(individual_id)
+        self.tabs.setCurrentWidget(self.detail)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date, timedelta
 
 from app.db.schema import init_db, reset_data_tables
 from app.etl.loaders import (
@@ -59,6 +60,28 @@ def _update_sow_status(conn: sqlite3.Connection,
             "UPDATE sows SET status='culled' WHERE individual_id=?",
             (c["individual_id"],),
         )
+
+
+def _mark_nonproductive_sows(conn: sqlite3.Connection) -> int:
+    """Mark sows as inactive: 18+ months old with 0 total births.
+    Returns count of sows updated."""
+    threshold = (date.today() - timedelta(days=548)).isoformat()  # ~18 months
+    cur = conn.execute(
+        """UPDATE sows SET status='inactive'
+           WHERE status='active'
+             AND birth_date IS NOT NULL
+             AND birth_date <= ?
+             AND individual_id IN (
+               SELECT s.individual_id FROM sows s
+               LEFT JOIN (
+                 SELECT individual_id, SUM(total_born) AS total
+                 FROM farrowing_records GROUP BY individual_id
+               ) f ON s.individual_id = f.individual_id
+               WHERE COALESCE(f.total, 0) = 0
+             )""",
+        (threshold,),
+    )
+    return cur.rowcount
 
 
 def _enrich_sow_parents(conn: sqlite3.Connection,
@@ -133,6 +156,9 @@ def run_etl(conn: sqlite3.Connection,
     _progress("ステータス更新...")
     _update_sow_status(conn, deaths, culls)
     _enrich_sow_parents(conn, piglets)
+    n_inactive = _mark_nonproductive_sows(conn)
+    if n_inactive:
+        _progress(f"未生産18ヶ月超: {n_inactive}頭を稼働外に変更")
     conn.commit()
 
     counts["sows"] = conn.execute("SELECT count(*) FROM sows").fetchone()[0]

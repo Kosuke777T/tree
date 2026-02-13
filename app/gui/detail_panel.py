@@ -88,9 +88,16 @@ class DetailPanel(QWidget):
                     f"Sust={sow['sustain']:.3f}  OQ={sow['offspring_quality']:.3f})"
                 )
             if sow["rank_all"] is not None:
-                rank_str = f"全頭順位: #{sow['rank_all']}"
+                # Get totals for ranking context
+                totals = self.conn.execute(
+                    """SELECT count(*) AS total,
+                              count(CASE WHEN s.status='active' THEN 1 END) AS active
+                       FROM sow_scores sc
+                       JOIN sows s ON sc.individual_id = s.individual_id"""
+                ).fetchone()
+                rank_str = f"全頭順位: {sow['rank_all']}/{totals['total']}"
                 if sow["rank_active"] is not None:
-                    rank_str += f"  稼働順位: #{sow['rank_active']}"
+                    rank_str += f"  稼働順位: {sow['rank_active']}/{totals['active']}"
                 parts.append(rank_str)
             self.summary_label.setText("\n".join(parts))
         else:
@@ -108,8 +115,24 @@ class DetailPanel(QWidget):
             (individual_id,),
         ).fetchall()
 
+        # Per-parity totals for ranking context
+        parity_totals = {}
+        for row in self.conn.execute(
+            """SELECT ps.parity, count(*) AS total,
+                      count(CASE WHEN s.status='active' THEN 1 END) AS active
+               FROM parity_scores ps
+               JOIN sows s ON ps.individual_id = s.individual_id
+               GROUP BY ps.parity"""
+        ).fetchall():
+            parity_totals[row["parity"]] = (row["total"], row["active"])
+
         self.parity_table.setRowCount(len(p_rows))
         for i, r in enumerate(p_rows):
+            pt = parity_totals.get(r["parity"], (0, 0))
+            rank_all_str = (f"{r['rank_all']}/{pt[0]}"
+                            if r["rank_all"] is not None else "")
+            rank_active_str = (f"{r['rank_active']}/{pt[1]}"
+                               if r["rank_active"] is not None else "")
             vals = [
                 str(r["parity"]),
                 f"{r['own_weaned']:.1f}" if r["own_weaned"] is not None else "",
@@ -120,8 +143,8 @@ class DetailPanel(QWidget):
                 f"{r['z_stillborn']:.3f}" if r["z_stillborn"] is not None else "",
                 f"{r['z_own_rate']:.3f}" if r["z_own_rate"] is not None else "",
                 f"{r['parity_score']:.3f}" if r["parity_score"] is not None else "",
-                str(r["rank_all"]) if r["rank_all"] is not None else "",
-                str(r["rank_active"]) if r["rank_active"] is not None else "",
+                rank_all_str,
+                rank_active_str,
                 str(r["weaned"]) if r["weaned"] is not None else "",
             ]
             for j, v in enumerate(vals):

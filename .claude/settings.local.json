@@ -3,7 +3,8 @@
     "allow": [
       "Bash(uv sync:*)",
       "Bash(uv run python:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(python:*)"
     ]
   }
 }

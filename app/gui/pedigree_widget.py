@@ -5,8 +5,8 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass, field
 
-from PyQt6.QtCore import QPointF, QRectF, Qt
-from PyQt6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen, QWheelEvent
+from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QBrush, QColor, QFont, QMouseEvent, QPainter, QPainterPath, QPen, QWheelEvent
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGraphicsItem,
@@ -60,6 +60,8 @@ class TreeNode:
 class PedigreeView(QGraphicsView):
     """Zoomable, pannable graphics view."""
 
+    node_double_clicked = pyqtSignal(str)  # individual_id
+
     def __init__(self, scene: QGraphicsScene, parent=None):
         super().__init__(scene, parent)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -71,6 +73,16 @@ class PedigreeView(QGraphicsView):
     def wheelEvent(self, event: QWheelEvent):
         factor = ZOOM_FACTOR if event.angleDelta().y() > 0 else 1 / ZOOM_FACTOR
         self.scale(factor, factor)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent):
+        item = self.itemAt(event.pos())
+        if item:
+            sid = item.data(0)
+            if not sid and item.parentItem():
+                sid = item.parentItem().data(0)
+            if sid:
+                self.node_double_clicked.emit(sid)
+        super().mouseDoubleClickEvent(event)
 
 
 class PedigreeWidget(QWidget):
@@ -138,6 +150,16 @@ class PedigreeWidget(QWidget):
                 rank_active=r["rank_active"],
             )
             self.all_nodes[node.individual_id] = node
+
+        # Total counts for ranking display (scored sows only)
+        rank_counts = self.conn.execute(
+            """SELECT count(*) AS total,
+                      count(CASE WHEN s.status='active' THEN 1 END) AS active
+               FROM sow_scores sc
+               JOIN sows s ON sc.individual_id = s.individual_id"""
+        ).fetchone()
+        self._ranked_all = rank_counts["total"] if rank_counts else 0
+        self._ranked_active = rank_counts["active"] if rank_counts else 0
 
         # Parity count
         for r in self.conn.execute(
@@ -319,9 +341,9 @@ class PedigreeWidget(QWidget):
         if node.cause:
             line3 = node.cause[:16]
         elif node.rank_all is not None:
-            line3 = f"全{node.rank_all}位"
+            line3 = f"全{node.rank_all}/{self._ranked_all}"
             if node.rank_active is not None:
-                line3 += f" / 稼{node.rank_active}位"
+                line3 += f" 稼{node.rank_active}/{self._ranked_active}"
         else:
             line3 = node.status
         t3 = self.scene.addSimpleText(line3, font_s)
@@ -351,6 +373,8 @@ class PedigreeWidget(QWidget):
             return COL_DEAD
         if node.status == "culled":
             return COL_CULLED
+        if node.status == "inactive":
+            return COL_CULLED  # 未生産18ヶ月超：廃豚と同じオレンジ
         return COL_ACTIVE
 
     def _draw_mother_line(self, parent: TreeNode, child: TreeNode) -> None:
