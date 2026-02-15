@@ -20,6 +20,7 @@ from app.etl.pipeline import run_etl
 from app.gui.detail_panel import DetailPanel
 from app.gui.pedigree_widget import PedigreeWidget
 from app.gui.pedigree_widget2 import PedigreeWidget2
+from app.gui.pedigree_widget3 import PedigreeWidget3
 from app.scoring.engine import run_scoring
 
 
@@ -67,12 +68,16 @@ class MainWindow(QMainWindow):
         self.pedigree2 = PedigreeWidget2(self.conn)
         self.tabs.addTab(self.pedigree2, "家系図2")
 
+        self.pedigree3 = PedigreeWidget3(self.conn)
+        self.tabs.addTab(self.pedigree3, "家系図3")
+
         self.detail = DetailPanel(self.conn)
         self.tabs.addTab(self.detail, "母豚詳細")
 
         # Connect pedigree double-click → detail
         self.pedigree.view.node_double_clicked.connect(self._on_pedigree_dblclick)
         self.pedigree2.view.node_double_clicked.connect(self._on_pedigree_dblclick)
+        self.pedigree3.view.node_double_clicked.connect(self._on_pedigree_dblclick)
 
         # Status bar
         self.status_bar = QStatusBar()
@@ -98,6 +103,7 @@ class MainWindow(QMainWindow):
                 f"既存DB読み込み — 母豚{sow_count}頭")
             self.pedigree.load_data()
             self.pedigree2.load_data()
+            self.pedigree3.load_data()
         else:
             self._start_etl()
 
@@ -122,12 +128,14 @@ class MainWindow(QMainWindow):
         self.conn = get_connection()
         self.pedigree.conn = self.conn
         self.pedigree2.conn = self.conn
+        self.pedigree3.conn = self.conn
         self.detail.conn = self.conn
 
         summary = ", ".join(f"{k}: {v}" for k, v in counts.items())
         self.status_bar.showMessage(f"読み込み完了 — {summary}")
         self.pedigree.load_data()
         self.pedigree2.load_data()
+        self.pedigree3.load_data()
 
     def _on_etl_error(self, msg: str) -> None:
         self.progress_bar.hide()
@@ -136,6 +144,7 @@ class MainWindow(QMainWindow):
         self.conn = get_connection()
         self.pedigree.conn = self.conn
         self.pedigree2.conn = self.conn
+        self.pedigree3.conn = self.conn
         self.detail.conn = self.conn
 
         self.status_bar.showMessage("ETLエラー")
