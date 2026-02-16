@@ -22,6 +22,7 @@ from app.gui.ml_panel import MLPanel
 from app.gui.pedigree_widget import PedigreeWidget
 from app.gui.pedigree_widget2 import PedigreeWidget2
 from app.gui.pedigree_widget3 import PedigreeWidget3
+from app.gui.pedigree_widget4 import PedigreeWidget4
 from app.scoring.engine import run_scoring
 
 
@@ -72,6 +73,9 @@ class MainWindow(QMainWindow):
         self.pedigree3 = PedigreeWidget3(self.conn)
         self.tabs.addTab(self.pedigree3, "家系図3")
 
+        self.pedigree4 = PedigreeWidget4(self.conn)
+        self.tabs.addTab(self.pedigree4, "家系図4")
+
         self.detail = DetailPanel(self.conn)
         self.tabs.addTab(self.detail, "母豚詳細")
 
@@ -82,6 +86,7 @@ class MainWindow(QMainWindow):
         self.pedigree.view.node_double_clicked.connect(self._on_pedigree_dblclick)
         self.pedigree2.view.node_double_clicked.connect(self._on_pedigree_dblclick)
         self.pedigree3.view.node_double_clicked.connect(self._on_pedigree_dblclick)
+        self.pedigree4.view.node_double_clicked.connect(self._on_pedigree_dblclick)
 
         # Status bar
         self.status_bar = QStatusBar()
@@ -108,6 +113,7 @@ class MainWindow(QMainWindow):
             self.pedigree.load_data()
             self.pedigree2.load_data()
             self.pedigree3.load_data()
+            self.pedigree4.load_data()
         else:
             self._start_etl()
 
@@ -133,6 +139,7 @@ class MainWindow(QMainWindow):
         self.pedigree.conn = self.conn
         self.pedigree2.conn = self.conn
         self.pedigree3.conn = self.conn
+        self.pedigree4.conn = self.conn
         self.detail.conn = self.conn
         self.ml_panel.conn = self.conn
 
@@ -141,6 +148,7 @@ class MainWindow(QMainWindow):
         self.pedigree.load_data()
         self.pedigree2.load_data()
         self.pedigree3.load_data()
+        self.pedigree4.load_data()
 
     def _on_etl_error(self, msg: str) -> None:
         self.progress_bar.hide()
@@ -150,6 +158,7 @@ class MainWindow(QMainWindow):
         self.pedigree.conn = self.conn
         self.pedigree2.conn = self.conn
         self.pedigree3.conn = self.conn
+        self.pedigree4.conn = self.conn
         self.detail.conn = self.conn
         self.ml_panel.conn = self.conn
 
