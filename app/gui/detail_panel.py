@@ -37,13 +37,13 @@ class DetailPanel(QWidget):
         # Parity scores table
         layout.addWidget(QLabel("産歴別スコア"))
         self.parity_table = QTableWidget()
-        self.parity_table.setColumnCount(19)
+        self.parity_table.setColumnCount(20)
         self.parity_table.setHorizontalHeaderLabels([
             "産歴", "総産子", "生存産子", "死産", "黒子", "里子",
             "離乳", "事故率",
             "z(生存)", "z(総産)", "z(死産)", "z(自己率)",
             "産歴スコア", "全頭順位", "稼働順位",
-            "子豚数", "PS出荷", "繰上げ", "PS/W率",
+            "子豚数", "PS出荷", "繰上げ", "PS/W率", "ML優秀確率",
         ])
         hdr = self.parity_table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
@@ -100,6 +100,15 @@ class DetailPanel(QWidget):
                 if sow["rank_active"] is not None:
                     rank_str += f"  稼働順位: {sow['rank_active']}/{totals['active']}"
                 parts.append(rank_str)
+            # ML prediction average
+            ml_avg = self.conn.execute(
+                """SELECT AVG(pred_excellent_prob) AS avg_prob
+                   FROM ml_predictions WHERE individual_id = ?""",
+                (individual_id,),
+            ).fetchone()
+            if ml_avg and ml_avg["avg_prob"] is not None:
+                avg_p = ml_avg["avg_prob"]
+                parts.append(f"ML優秀確率(平均): {avg_p:.3f}")
             self.summary_label.setText("\n".join(parts))
         else:
             self.summary_label.setText("データなし")
@@ -147,6 +156,15 @@ class DetailPanel(QWidget):
             piglet_stats[row["parity"]] = (
                 row["total"], row["ps"], row["w"])
 
+        # ML predictions per parity
+        ml_preds = {}
+        for row in self.conn.execute(
+            """SELECT parity, pred_excellent_prob
+               FROM ml_predictions WHERE individual_id = ?""",
+            (individual_id,),
+        ).fetchall():
+            ml_preds[row["parity"]] = row["pred_excellent_prob"]
+
         self.parity_table.setRowCount(len(p_rows))
         for i, r in enumerate(p_rows):
             pt = parity_totals.get(r["parity"], (0, 0))
@@ -178,6 +196,8 @@ class DetailPanel(QWidget):
                 str(pig_ps) if pig_total > 0 else "",
                 str(pig_w) if pig_total > 0 else "",
                 f"{pw_rate:.0f}%" if pig_total > 0 else "",
+                f"{ml_preds[r['parity']]:.3f}"
+                if r["parity"] in ml_preds else "",
             ]
             for j, v in enumerate(vals):
                 item = QTableWidgetItem(v)

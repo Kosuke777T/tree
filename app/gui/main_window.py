@@ -18,6 +18,7 @@ from app.db.connection import DB_PATH, get_connection
 from app.db.schema import init_db
 from app.etl.pipeline import run_etl
 from app.gui.detail_panel import DetailPanel
+from app.gui.ml_panel import MLPanel
 from app.gui.pedigree_widget import PedigreeWidget
 from app.gui.pedigree_widget2 import PedigreeWidget2
 from app.gui.pedigree_widget3 import PedigreeWidget3
@@ -73,6 +74,9 @@ class MainWindow(QMainWindow):
 
         self.detail = DetailPanel(self.conn)
         self.tabs.addTab(self.detail, "母豚詳細")
+
+        self.ml_panel = MLPanel(self.conn)
+        self.tabs.addTab(self.ml_panel, "ML分析")
 
         # Connect pedigree double-click → detail
         self.pedigree.view.node_double_clicked.connect(self._on_pedigree_dblclick)
@@ -130,6 +134,7 @@ class MainWindow(QMainWindow):
         self.pedigree2.conn = self.conn
         self.pedigree3.conn = self.conn
         self.detail.conn = self.conn
+        self.ml_panel.conn = self.conn
 
         summary = ", ".join(f"{k}: {v}" for k, v in counts.items())
         self.status_bar.showMessage(f"読み込み完了 — {summary}")
@@ -146,12 +151,14 @@ class MainWindow(QMainWindow):
         self.pedigree2.conn = self.conn
         self.pedigree3.conn = self.conn
         self.detail.conn = self.conn
+        self.ml_panel.conn = self.conn
 
         self.status_bar.showMessage("ETLエラー")
         QMessageBox.critical(self, "ETLエラー", msg)
 
     def _on_pedigree_dblclick(self, individual_id: str) -> None:
         self.detail.show_sow(individual_id)
+        self.ml_panel.show_sow(individual_id)
         self.tabs.setCurrentWidget(self.detail)
 
 

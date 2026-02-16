@@ -115,6 +115,16 @@ CREATE TABLE IF NOT EXISTS sow_scores (
     rank_all        INTEGER,
     rank_active     INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS ml_predictions (
+    individual_id   TEXT NOT NULL,
+    parity          INTEGER NOT NULL,
+    pred_excellent_prob REAL,
+    shap_json       TEXT,
+    model_version   TEXT,
+    predicted_at    TEXT,
+    PRIMARY KEY (individual_id, parity)
+);
 """
 
 

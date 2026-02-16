@@ -4,7 +4,10 @@
       "Bash(uv sync:*)",
       "Bash(uv run python:*)",
       "Bash(echo:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(du -sh:*)",
+      "Bash(python3:*)"
     ]
   }
 }
