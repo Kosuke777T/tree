@@ -483,6 +483,7 @@ class PedigreeWidget3(PedigreeWidget2):
             h = line_heights[i]
             item.setPos(node.x - w / 2, y)
             item.setBrush(QBrush(ln_color))
+            item.setData(0, node.individual_id)
             y += h + line_gap
 
         return count

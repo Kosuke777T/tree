@@ -391,37 +391,45 @@ class PedigreeWidget(QWidget):
     # ── Toolbar actions ──
 
     def _on_search(self) -> None:
-        query = self.search_edit.text().strip().upper()
+        query = self.search_edit.text().strip()
         if not query:
             return
 
-        # Find match (exact, then contains)
+        # Search in all_nodes first (exact match, then partial, case-insensitive)
         target = None
-        if query in self._node_items:
+        q_upper = query.upper()
+        if query in self.all_nodes:
             target = query
         else:
-            for sid in self._node_items:
-                if query in sid.upper():
+            for sid in self.all_nodes:
+                if sid.upper() == q_upper:
+                    target = sid
+                    break
+        if not target:
+            for sid in self.all_nodes:
+                if q_upper in sid.upper():
                     target = sid
                     break
 
         if not target:
-            # Node might be filtered out – turn off filter and re-render
+            self.info_label.setText(f"「{query}」は見つかりません")
+            return
+
+        # Ensure the node is drawn – turn off active filter if needed
+        if target not in self._node_items:
             if self._active_only:
                 self._active_only = False
                 self.chk_active.setChecked(False)
                 self._render()
-                # Try again
-                for sid in self._node_items:
-                    if query in sid.upper():
-                        target = sid
-                        break
 
-        if target and target in self._node_items:
+        if target in self._node_items:
             item = self._node_items[target]
             self.view.centerOn(item)
             self.scene.clearSelection()
             item.setSelected(True)
+            self.info_label.setText(f"検索結果: {target}")
+        else:
+            self.info_label.setText(f"「{target}」は表示できません")
 
     def _on_active_filter(self, state: int) -> None:
         self._active_only = state == Qt.CheckState.Checked.value
