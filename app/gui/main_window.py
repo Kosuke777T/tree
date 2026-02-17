@@ -5,15 +5,22 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import QThread, Qt, pyqtSignal
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
     QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QProgressBar,
+    QPushButton,
+    QSlider,
     QStatusBar,
     QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
 
 from app.db.connection import DB_PATH, get_connection
@@ -95,9 +102,58 @@ class MainWindow(QMainWindow):
         export_action.triggered.connect(self._on_export_html)
         file_menu.addAction(export_action)
 
-        # Central tabs
+        # Central widget: shared toolbar + tabs
         self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+
+        central = QWidget()
+        central_layout = QVBoxLayout(central)
+        central_layout.setContentsMargins(4, 4, 4, 0)
+        central_layout.setSpacing(2)
+
+        # Shared toolbar (search + remark filter)
+        shared_toolbar = QHBoxLayout()
+
+        self.shared_search_edit = QLineEdit()
+        self.shared_search_edit.setPlaceholderText("個体番号で検索...")
+        self.shared_search_edit.returnPressed.connect(self._on_shared_search)
+        shared_toolbar.addWidget(self.shared_search_edit)
+
+        btn_search = QPushButton("検索")
+        btn_search.clicked.connect(self._on_shared_search)
+        shared_toolbar.addWidget(btn_search)
+
+        self.shared_remark_edit = QLineEdit()
+        self.shared_remark_edit.setPlaceholderText("備考キーワード...")
+        self.shared_remark_edit.setFixedWidth(120)
+        self.shared_remark_edit.textChanged.connect(self._on_shared_remark_changed)
+        shared_toolbar.addWidget(self.shared_remark_edit)
+
+        self.shared_remark_slider = QSlider(Qt.Orientation.Horizontal)
+        self.shared_remark_slider.setRange(0, 100)
+        self.shared_remark_slider.setValue(0)
+        self.shared_remark_slider.setFixedWidth(120)
+        self.shared_remark_slider.valueChanged.connect(self._on_shared_remark_changed)
+        shared_toolbar.addWidget(self.shared_remark_slider)
+
+        self.shared_remark_label = QLabel("0%")
+        shared_toolbar.addWidget(self.shared_remark_label)
+
+        btn_up = QPushButton("▲")
+        btn_up.setFixedWidth(24)
+        btn_up.clicked.connect(lambda: self.shared_remark_slider.setValue(
+            min(100, self.shared_remark_slider.value() + 1)))
+        shared_toolbar.addWidget(btn_up)
+
+        btn_down = QPushButton("▼")
+        btn_down.setFixedWidth(24)
+        btn_down.clicked.connect(lambda: self.shared_remark_slider.setValue(
+            max(0, self.shared_remark_slider.value() - 1)))
+        shared_toolbar.addWidget(btn_down)
+
+        shared_toolbar.addStretch()
+        central_layout.addLayout(shared_toolbar)
+        central_layout.addWidget(self.tabs)
+        self.setCentralWidget(central)
 
         self.pedigree = PedigreeWidget(self.conn)
         self.tabs.addTab(self.pedigree, "家系図")
@@ -199,6 +255,20 @@ class MainWindow(QMainWindow):
 
         self.status_bar.showMessage("ETLエラー")
         QMessageBox.critical(self, "ETLエラー", msg)
+
+    def _on_shared_search(self) -> None:
+        query = self.shared_search_edit.text().strip()
+        if not query:
+            return
+        for w in [self.pedigree, self.pedigree2, self.pedigree3, self.pedigree4]:
+            w._on_search(query)
+
+    def _on_shared_remark_changed(self) -> None:
+        keyword = self.shared_remark_edit.text().strip()
+        threshold = self.shared_remark_slider.value()
+        self.shared_remark_label.setText(f"{threshold}%")
+        for w in [self.pedigree, self.pedigree2, self.pedigree3, self.pedigree4]:
+            w.set_remark_filter(keyword, threshold)
 
     def _on_pedigree_dblclick(self, individual_id: str) -> None:
         self.detail.show_sow(individual_id)

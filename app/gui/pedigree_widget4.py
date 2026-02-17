@@ -9,7 +9,7 @@ from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtGui import QBrush, QColor, QPen
 from PyQt6.QtWidgets import QGraphicsItem, QLabel, QLineEdit, QListWidgetItem
 
-from app.gui.pedigree_widget import COL_BG, COL_CULLED, COL_DEAD, COL_MOTHER_LINE, NODE_W, TreeNode
+from app.gui.pedigree_widget import COL_BG, COL_CULLED, COL_DEAD, COL_MOTHER_LINE, COL_REMARK_LINE, NODE_W, TreeNode
 from app.gui.pedigree_widget3 import PedigreeWidget3
 
 
@@ -308,7 +308,11 @@ class PedigreeWidget4(PedigreeWidget3):
         in_focus: bool = True,
         inherited_width: float | None = None,
     ) -> float:
-        line_color = QColor(COL_MOTHER_LINE if in_focus else COL_BG.darker(120))
+        if parent.individual_id in self._remark_exceed_sows:
+            base_col = COL_REMARK_LINE
+        else:
+            base_col = COL_MOTHER_LINE
+        line_color = QColor(base_col if in_focus else COL_BG.darker(120))
         if not in_focus:
             line_color.setAlpha(85)
 

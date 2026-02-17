@@ -25,6 +25,7 @@ from app.gui.pedigree_widget import (
     COL_DEAD,
     COL_FATHER_TAG,
     COL_MOTHER_LINE,
+    COL_REMARK_LINE,
     COL_TOP10,
     H_SPACING,
     NODE_H,
@@ -207,6 +208,7 @@ class PedigreeWidget2(PedigreeWidget):
         return out
 
     def _render(self) -> None:
+        self._compute_remark_rates()
         self.scene.clear()
         self._node_items.clear()
 
@@ -330,7 +332,11 @@ class PedigreeWidget2(PedigreeWidget):
         return count
 
     def _draw_mother_line(self, parent: TreeNode, child: TreeNode, in_focus: bool = True) -> None:
-        line_color = QColor(COL_MOTHER_LINE if in_focus else COL_BG.darker(120))
+        if parent.individual_id in self._remark_exceed_sows:
+            base_col = COL_REMARK_LINE
+        else:
+            base_col = COL_MOTHER_LINE
+        line_color = QColor(base_col if in_focus else COL_BG.darker(120))
         if not in_focus:
             line_color.setAlpha(85)
         pen = QPen(line_color, 1.5)

@@ -15,8 +15,6 @@ from PyQt6.QtWidgets import (
     QGraphicsView,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -36,6 +34,7 @@ COL_TOP10 = QColor("#E53935")
 COL_MOTHER_LINE = QColor("#D32F2F")
 COL_FATHER_TAG = QColor("#1565C0")
 COL_BG = QColor("#FAFAFA")
+COL_REMARK_LINE = QColor("#1565C0")
 
 
 @dataclass
@@ -95,20 +94,15 @@ class PedigreeWidget(QWidget):
         self.root_nodes: list[TreeNode] = []
         self._node_items: dict[str, QGraphicsRectItem] = {}
         self._active_only = True  # default: show active branches only
+        self._remark_keyword = ""
+        self._remark_threshold = 0
+        self._remark_exceed_sows: set[str] = set()
 
         # ── Toolbar ──
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 0)
 
         toolbar = QHBoxLayout()
-        self.search_edit = QLineEdit()
-        self.search_edit.setPlaceholderText("個体番号で検索...")
-        self.search_edit.returnPressed.connect(self._on_search)
-        toolbar.addWidget(self.search_edit)
-
-        btn_search = QPushButton("検索")
-        btn_search.clicked.connect(self._on_search)
-        toolbar.addWidget(btn_search)
 
         self.chk_active = QCheckBox("稼働母豚のみ")
         self.chk_active.setChecked(True)
@@ -235,6 +229,7 @@ class PedigreeWidget(QWidget):
     # ── Rendering ──
 
     def _render(self) -> None:
+        self._compute_remark_rates()
         self.scene.clear()
         self._node_items.clear()
 
@@ -385,7 +380,8 @@ class PedigreeWidget(QWidget):
         return COL_ACTIVE
 
     def _draw_mother_line(self, parent: TreeNode, child: TreeNode) -> None:
-        pen = QPen(COL_MOTHER_LINE, 1.5)
+        line_col = COL_REMARK_LINE if parent.individual_id in self._remark_exceed_sows else COL_MOTHER_LINE
+        pen = QPen(line_col, 1.5)
         x1 = parent.x + NODE_W
         y1 = parent.y + NODE_H / 2
         x2 = child.x
@@ -397,8 +393,13 @@ class PedigreeWidget(QWidget):
 
     # ── Toolbar actions ──
 
-    def _on_search(self) -> None:
-        query = self.search_edit.text().strip()
+    def set_remark_filter(self, keyword: str, threshold: int) -> None:
+        self._remark_keyword = keyword
+        self._remark_threshold = threshold
+        if self.all_nodes:
+            self._render()
+
+    def _on_search(self, query: str) -> None:
         if not query:
             return
 
@@ -441,3 +442,25 @@ class PedigreeWidget(QWidget):
     def _on_active_filter(self, state: int) -> None:
         self._active_only = state == Qt.CheckState.Checked.value
         self._render()
+
+    def _compute_remark_rates(self) -> None:
+        keyword = self._remark_keyword
+        threshold = self._remark_threshold
+        if not keyword or threshold == 0:
+            self._remark_exceed_sows: set[str] = set()
+            return
+        rows = self.conn.execute(
+            "SELECT dam_id,"
+            " COUNT(*) AS total,"
+            " SUM(CASE WHEN remarks LIKE ? THEN 1 ELSE 0 END) AS matched"
+            " FROM piglets"
+            " WHERE dam_id IS NOT NULL"
+            " GROUP BY dam_id",
+            (f"%{keyword}%",),
+        ).fetchall()
+        self._remark_exceed_sows = set()
+        for r in rows:
+            total = r["total"]
+            matched = r["matched"]
+            if total > 0 and matched / total * 100 > threshold:
+                self._remark_exceed_sows.add(r["dam_id"])
