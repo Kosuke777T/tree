@@ -6,7 +6,9 @@ import sqlite3
 from pathlib import Path
 
 from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
+    QFileDialog,
     QMainWindow,
     QMessageBox,
     QProgressBar,
@@ -23,7 +25,33 @@ from app.gui.pedigree_widget import PedigreeWidget
 from app.gui.pedigree_widget2 import PedigreeWidget2
 from app.gui.pedigree_widget3 import PedigreeWidget3
 from app.gui.pedigree_widget4 import PedigreeWidget4
+from app.export.html_report import export_html_report
 from app.scoring.engine import run_scoring
+
+
+class ExportWorker(QThread):
+    """Background thread for HTML report export."""
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(str)  # output file path
+    error = pyqtSignal(str)
+
+    def __init__(self, db_path: str, output_dir: str):
+        super().__init__()
+        self.db_path = db_path
+        self.output_dir = output_dir
+
+    def run(self):
+        try:
+            conn = get_connection(self.db_path)
+            path = export_html_report(
+                conn, Path(self.output_dir),
+                progress_cb=self.progress.emit,
+            )
+            conn.close()
+            self.finished.emit(str(path))
+        except Exception as e:
+            import traceback
+            self.error.emit(traceback.format_exc())
 
 
 class ETLWorker(QThread):
@@ -59,6 +87,13 @@ class MainWindow(QMainWindow):
 
         self.conn = get_connection()
         init_db(self.conn)
+
+        # Menu bar
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("ファイル")
+        export_action = QAction("HTMLレポート出力...", self)
+        export_action.triggered.connect(self._on_export_html)
+        file_menu.addAction(export_action)
 
         # Central tabs
         self.tabs = QTabWidget()
@@ -169,6 +204,39 @@ class MainWindow(QMainWindow):
         self.detail.show_sow(individual_id)
         self.ml_panel.show_sow(individual_id)
         self.tabs.setCurrentWidget(self.detail)
+
+    # ── HTML Export ──
+
+    def _on_export_html(self) -> None:
+        default_dir = str(Path.home() / "OneDrive")
+        if not Path(default_dir).exists():
+            default_dir = str(Path.home())
+        output_dir = QFileDialog.getExistingDirectory(
+            self, "レポート出力先を選択", default_dir)
+        if not output_dir:
+            return
+
+        self.progress_bar.show()
+        self.status_bar.showMessage("HTMLレポート生成中...")
+
+        self._export_worker = ExportWorker(str(DB_PATH), output_dir)
+        self._export_worker.progress.connect(
+            lambda msg: self.status_bar.showMessage(msg))
+        self._export_worker.finished.connect(self._on_export_done)
+        self._export_worker.error.connect(self._on_export_error)
+        self._export_worker.start()
+
+    def _on_export_done(self, file_path: str) -> None:
+        self.progress_bar.hide()
+        self.status_bar.showMessage(f"レポート出力完了: {file_path}")
+        QMessageBox.information(
+            self, "エクスポート完了",
+            f"HTMLレポートを出力しました:\n{file_path}")
+
+    def _on_export_error(self, msg: str) -> None:
+        self.progress_bar.hide()
+        self.status_bar.showMessage("エクスポートエラー")
+        QMessageBox.critical(self, "エクスポートエラー", msg)
 
 
 if __name__ == "__main__":
