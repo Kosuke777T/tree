@@ -215,6 +215,13 @@ class PedigreeWidget4(PedigreeWidget3):
         rx = node.x - diameter / 2
         ry = node.y - diameter / 2
 
+        # ── Parity number (left of card) ──
+        if node.parity_count > 0:
+            parity_font = self._font(max(8, int(diameter * 0.24)))
+            pt = self.scene.addSimpleText(str(node.parity_count), parity_font)
+            pt.setPos(rx - pt.boundingRect().width() - 3, node.y - pt.boundingRect().height() / 2)
+            pt.setBrush(QBrush(QColor(0, 0, 0)))
+
         avg_prob = self._ml_avg_prob.get(node.individual_id)
         pen_width = 1.5
         pen_color = color.darker(130)

@@ -278,6 +278,13 @@ class PedigreeWidget2(PedigreeWidget):
         rect.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self._node_items[node.individual_id] = rect
 
+        # ── Parity number (left of card) ──
+        if node.parity_count > 0:
+            parity_font = QFont("Meiryo", 14)
+            pt = self.scene.addSimpleText(str(node.parity_count), parity_font)
+            pt.setPos(node.x - pt.boundingRect().width() - 4, node.y + NODE_H / 2 - pt.boundingRect().height() / 2)
+            pt.setBrush(QBrush(QColor(0, 0, 0)))
+
         font = QFont("Meiryo", 8)
         font_s = QFont("Meiryo", 7)
         alpha_main = 255 if in_focus else 85

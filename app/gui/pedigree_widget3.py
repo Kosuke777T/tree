@@ -428,6 +428,13 @@ class PedigreeWidget3(PedigreeWidget2):
         rx = node.x - diameter / 2
         ry = node.y - diameter / 2
 
+        # ── Parity number (left of card) ──
+        if node.parity_count > 0:
+            parity_font = self._font(max(8, int(diameter * 0.24)))
+            pt = self.scene.addSimpleText(str(node.parity_count), parity_font)
+            pt.setPos(rx - pt.boundingRect().width() - 3, node.y - pt.boundingRect().height() / 2)
+            pt.setBrush(QBrush(QColor(0, 0, 0)))
+
         rect = self.scene.addEllipse(
             QRectF(rx, ry, diameter, diameter),
             QPen(color.darker(130), 1.5),
