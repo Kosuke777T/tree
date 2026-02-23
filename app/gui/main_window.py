@@ -28,6 +28,7 @@ from app.db.schema import init_db
 from app.etl.pipeline import run_etl
 from app.gui.detail_panel import DetailPanel
 from app.gui.ml_panel import MLPanel
+from app.gui.sow_report_panel import SowReportPanel
 from app.gui.pedigree_widget import PedigreeWidget
 from app.gui.pedigree_widget2 import PedigreeWidget2
 from app.gui.pedigree_widget3 import PedigreeWidget3
@@ -170,8 +171,14 @@ class MainWindow(QMainWindow):
         self.detail = DetailPanel(self.conn)
         self.tabs.addTab(self.detail, "母豚詳細")
 
+        self.sow_report = SowReportPanel(self.conn)
+        self.tabs.addTab(self.sow_report, "母豚レポート")
+
         self.ml_panel = MLPanel(self.conn)
         self.tabs.addTab(self.ml_panel, "ML分析")
+
+        # Connect sow report double-click → pedigree search
+        self.sow_report.search_requested.connect(self._on_report_search)
 
         # Connect pedigree double-click → detail
         self.pedigree.view.node_double_clicked.connect(self._on_pedigree_dblclick)
@@ -205,6 +212,7 @@ class MainWindow(QMainWindow):
             self.pedigree2.load_data()
             self.pedigree3.load_data()
             self.pedigree4.load_data()
+            self.sow_report.refresh()
         else:
             self._start_etl()
 
@@ -232,6 +240,7 @@ class MainWindow(QMainWindow):
         self.pedigree3.conn = self.conn
         self.pedigree4.conn = self.conn
         self.detail.conn = self.conn
+        self.sow_report.conn = self.conn
         self.ml_panel.conn = self.conn
 
         summary = ", ".join(f"{k}: {v}" for k, v in counts.items())
@@ -240,6 +249,7 @@ class MainWindow(QMainWindow):
         self.pedigree2.load_data()
         self.pedigree3.load_data()
         self.pedigree4.load_data()
+        self.sow_report.refresh()
 
     def _on_etl_error(self, msg: str) -> None:
         self.progress_bar.hide()
@@ -251,6 +261,7 @@ class MainWindow(QMainWindow):
         self.pedigree3.conn = self.conn
         self.pedigree4.conn = self.conn
         self.detail.conn = self.conn
+        self.sow_report.conn = self.conn
         self.ml_panel.conn = self.conn
 
         self.status_bar.showMessage("ETLエラー")
@@ -269,6 +280,10 @@ class MainWindow(QMainWindow):
         self.shared_remark_label.setText(f"{threshold}%")
         for w in [self.pedigree, self.pedigree2, self.pedigree3, self.pedigree4]:
             w.set_remark_filter(keyword, threshold)
+
+    def _on_report_search(self, individual_id: str) -> None:
+        self.shared_search_edit.setText(individual_id)
+        self._on_shared_search()
 
     def _on_pedigree_dblclick(self, individual_id: str) -> None:
         self.detail.show_sow(individual_id)
